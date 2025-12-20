@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import path from "path";
 import db from "./config/db.js";
+import { time } from "console";
 
 // Connect to database
 db();
@@ -34,7 +35,12 @@ app.use("/uploads", (req, res, next) => {
 app.use("/auth", authRoutes);
 app.use("/admin", adminRoutes);
 app.use("/user", userRoutes);
-
+app.get("/health", (req, res) => {
+  res.status(200).send({
+    time: new Date().toISOString(),
+    status: "OK"
+  });
+});
 app.listen(process.env.PORT,() => {
   console.log("Server running ");
 });
