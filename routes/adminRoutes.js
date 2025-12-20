@@ -49,11 +49,11 @@ router.post("/upload-product-image", upload.single("image"), async (req, res) =>
     if (!req.file) {
       return res.status(400).json({ message: "No image file provided" });
     }
-    
+
     const imageUrl = `http://localhost:5000/uploads/products/${req.file.filename}`;
-    res.json({ 
-      message: "Image uploaded successfully", 
-      imageUrl 
+    res.json({
+      message: "Image uploaded successfully",
+      imageUrl
     });
   } catch (err) {
     res.status(500).json({ message: "Error uploading image", error: err.message });
@@ -86,7 +86,7 @@ router.post("/upload-json", async (req, res) => {
         shuffled.forEach((val, idx) => {
           newOptions[labels[idx]] = val;
         });
-        const correctValue = ['A','B','C','D'].includes(q.correctAnswer) ? q.options[q.correctAnswer] : q.correctAnswer;
+        const correctValue = ['A', 'B', 'C', 'D'].includes(q.correctAnswer) ? q.options[q.correctAnswer] : q.correctAnswer;
         const newCorrectAnswer = Object.keys(newOptions).find(k => newOptions[k] === correctValue) || "A";
         return {
           question: q.question,
@@ -127,7 +127,7 @@ router.get("/suggestions", async (req, res) => {
     suggestedAnswer: a.selectedOption,
     question: {
       ...a.questionId.toObject(),
-      correctAnswer: ['A','B','C','D'].includes(a.questionId.correctAnswer) ? a.questionId.options[a.questionId.correctAnswer] : a.questionId.correctAnswer
+      correctAnswer: ['A', 'B', 'C', 'D'].includes(a.questionId.correctAnswer) ? a.questionId.options[a.questionId.correctAnswer] : a.questionId.correctAnswer
     }
   }));
 
@@ -142,11 +142,11 @@ router.post("/approve/:id", async (req, res) => {
       { approved: true },
       { new: true }
     );
-    
+
     if (!answer) {
       return res.status(404).json({ message: "Suggestion not found" });
     }
-    
+
     res.json({ message: "Suggestion approved", answer });
   } catch (err) {
     res.status(500).json({ message: "Error approving suggestion", error: err.message });
@@ -158,7 +158,7 @@ router.get("/questions", async (req, res) => {
   const questions = await Question.find({});
   const normalized = questions.map(q => ({
     ...q.toObject(),
-    correctAnswer: ['A','B','C','D'].includes(q.correctAnswer) ? q.options[q.correctAnswer] : q.correctAnswer
+    correctAnswer: ['A', 'B', 'C', 'D'].includes(q.correctAnswer) ? q.options[q.correctAnswer] : q.correctAnswer
   }));
   res.json(normalized);
 });
@@ -197,7 +197,7 @@ router.post("/shuffle-questions", async (req, res) => {
       shuffled.forEach((val, idx) => {
         newOptions[labels[idx]] = val;
       });
-      const correctValue = ['A','B','C','D'].includes(q.correctAnswer) ? q.options[q.correctAnswer] : q.correctAnswer;
+      const correctValue = ['A', 'B', 'C', 'D'].includes(q.correctAnswer) ? q.options[q.correctAnswer] : q.correctAnswer;
       q.options = newOptions;
       q.correctAnswer = correctValue;
       await q.save();
@@ -238,46 +238,18 @@ router.get("/ad-content", async (req, res) => {
 router.post("/ad-content", async (req, res) => {
   try {
     const { product1Title, product1Image, product1Price, product1Description, product1Link, product2Title, product2Image, product2Price, product2Description, product2Link, tipsTitle, tipsText, quickTip1, quickTip2, quickTip3 } = req.body;
-    
+
     let adContent = await AdContent.findOne();
     if (!adContent) {
-      adContent = new AdContent({
-        product1Title,
-        product1Image,
-        product1Price,
-        product1Description,
-        product1Link,
-        product2Title,
-        product2Image,
-        product2Price,
-        product2Description,
-        product2Link,
-        tipsTitle,
-        tipsText,
-        quickTip1,
-        quickTip2,
-        quickTip3,
-        updatedAt: new Date()
-      });
+      adContent = new AdContent(req.body);
     } else {
-      adContent.product1Title = product1Title;
-      adContent.product1Image = product1Image;
-      adContent.product1Price = product1Price;
-      adContent.product1Description = product1Description;
-      adContent.product1Link = product1Link;
-      adContent.product2Title = product2Title;
-      adContent.product2Image = product2Image;
-      adContent.product2Price = product2Price;
-      adContent.product2Description = product2Description;
-      adContent.product2Link = product2Link;
-      adContent.tipsTitle = tipsTitle;
-      adContent.tipsText = tipsText;
-      adContent.quickTip1 = quickTip1;
-      adContent.quickTip2 = quickTip2;
-      adContent.quickTip3 = quickTip3;
+      // Update only provided fields
+      Object.keys(req.body).forEach(key => {
+        adContent[key] = req.body[key];
+      });
       adContent.updatedAt = new Date();
     }
-    
+
     await adContent.save();
     res.json({ message: "Ad content saved successfully", adContent });
   } catch (err) {

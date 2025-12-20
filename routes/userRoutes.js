@@ -41,7 +41,7 @@ router.post("/answer", authenticate, async (req, res) => {
   });
   await answer.save();
 
-  res.json({ isCorrect, correctAnswer: ['A','B','C','D'].includes(question.correctAnswer) ? question.options[question.correctAnswer] : question.correctAnswer });
+  res.json({ isCorrect, correctAnswer: ['A', 'B', 'C', 'D'].includes(question.correctAnswer) ? question.options[question.correctAnswer] : question.correctAnswer });
 });
 
 // Get user answer for a question (requires auth)
@@ -52,7 +52,7 @@ router.get("/user/answers/:questionId", authenticate, async (req, res) => {
   const answer = await Answer.findOne({ user: userId, questionId });
   if (answer) {
     const question = await Question.findById(questionId);
-    const correctAnswerText = ['A','B','C','D'].includes(question.correctAnswer) ? question.options[question.correctAnswer] : question.correctAnswer;
+    const correctAnswerText = ['A', 'B', 'C', 'D'].includes(question.correctAnswer) ? question.options[question.correctAnswer] : question.correctAnswer;
     res.json({ hasAnswered: true, selectedOption: answer.selectedOption, isCorrect: answer.isCorrect, correctAnswer: correctAnswerText });
   } else {
     res.json({ hasAnswered: false });
@@ -109,16 +109,18 @@ router.get("/attempted-questions", authenticate, async (req, res) => {
   try {
     const userId = req.user.id;
     const answers = await Answer.find({ user: userId }).populate("questionId");
-    
-    const attemptedQuestions = answers.map(answer => ({
-      ...answer.questionId.toObject(),
-      userAnswer: answer.selectedOption,
-      isCorrect: answer.isCorrect,
-      correctAnswer: ['A','B','C','D'].includes(answer.questionId.correctAnswer) 
-        ? answer.questionId.options[answer.questionId.correctAnswer] 
-        : answer.questionId.correctAnswer
-    }));
-    
+
+    const attemptedQuestions = answers
+      .filter(answer => answer.questionId) // Filter out answers where question was deleted
+      .map(answer => ({
+        ...answer.questionId.toObject(),
+        userAnswer: answer.selectedOption,
+        isCorrect: answer.isCorrect,
+        correctAnswer: ['A', 'B', 'C', 'D'].includes(answer.questionId.correctAnswer)
+          ? answer.questionId.options[answer.questionId.correctAnswer]
+          : answer.questionId.correctAnswer
+      }));
+
     res.json(attemptedQuestions);
   } catch (err) {
     res.status(500).json({ message: "Error fetching attempted questions", error: err.message });
