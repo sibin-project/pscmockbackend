@@ -14,6 +14,17 @@ router.get("/questions", async (req, res) => {
   res.json(filtered);
 });
 
+// Get single question by ID (public)
+router.get("/questions/:id", async (req, res) => {
+  try {
+    const question = await Question.findById(req.params.id);
+    if (!question) return res.status(404).json({ message: "Question not found" });
+    res.json(question);
+  } catch (err) {
+    res.status(500).json({ message: "Error fetching question" });
+  }
+});
+
 // Submit answer (requires auth)
 router.post("/answer", authenticate, async (req, res) => {
   const { questionId, selectedOption, approved = true } = req.body;
