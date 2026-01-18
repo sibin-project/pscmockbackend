@@ -169,6 +169,41 @@ router.put("/questions/:id", async (req, res) => {
   res.json({ message: "Question updated" });
 });
 
+/* ================= ADD SINGLE QUESTION ================= */
+router.post("/question", async (req, res) => {
+  try {
+    const { question, options, correctAnswer } = req.body;
+
+    // Optional: Shuffle options here too if desired, 
+    // but for manual entry, it's often better to respect the user's input order 
+    // unless consistency is strictly required. 
+    // Assuming we store the correct answer KEY (A, B, C, D) or value.
+    // The GET /questions endpoint handles converting keys to values if needed.
+
+    // Check if we need to convert the key to value as per upload-json logic
+    // upload-json stores the VALUE.
+
+    // If user sends 'A', we should probably store options['A'] to match upload-json behavior
+    let finalCorrectAnswer = correctAnswer;
+    if (['A', 'B', 'C', 'D'].includes(correctAnswer)) {
+      // If the frontend sends the key (e.g. "A"), let's store the text value
+      // ensuring consistency with the upload-json logic which seems to store text
+      finalCorrectAnswer = options[correctAnswer];
+    }
+
+    const newQuestion = new Question({
+      question,
+      options,
+      correctAnswer: finalCorrectAnswer
+    });
+
+    await newQuestion.save();
+    res.json({ message: "Question added successfully", question: newQuestion });
+  } catch (err) {
+    res.status(500).json({ message: "Error adding question", error: err.message });
+  }
+});
+
 /* ================= DELETE QUESTION ================= */
 router.delete("/questions/:id", async (req, res) => {
   try {
