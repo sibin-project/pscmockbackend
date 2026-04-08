@@ -9,7 +9,12 @@ const router = express.Router();
 
 // Get questions (public, no auth needed)
 router.get("/questions", async (req, res) => {
-  const questions = await Question.find({}).lean();
+  const { category, subcategory } = req.query;
+  const filter = { isApproved: { $ne: false } };
+  if (category) filter.category = category;
+  if (subcategory) filter.subcategory = subcategory;
+
+  const questions = await Question.find(filter).lean();
   const filtered = questions.filter(q => q.options && Object.keys(q.options).length > 0);
   res.json(filtered);
 });
@@ -27,7 +32,7 @@ router.get("/questions/:id", async (req, res) => {
 
 // Submit answer (requires auth)
 router.post("/answer", authenticate, async (req, res) => {
-  const { questionId, selectedOption, approved = true } = req.body;
+  const { questionId, selectedOption } = req.body;
   const userId = req.user.id;
 
   // Check if already answered
@@ -48,11 +53,53 @@ router.post("/answer", authenticate, async (req, res) => {
     questionId,
     selectedOption,
     isCorrect,
-    approved
+    approved: true
   });
   await answer.save();
 
   res.json({ isCorrect, correctAnswer: ['A', 'B', 'C', 'D'].includes(question.correctAnswer) ? question.options[question.correctAnswer] : question.correctAnswer });
+});
+
+// Suggest correction (public)
+router.post("/suggest-correction", async (req, res) => {
+  const { questionId, selectedOption } = req.body;
+  
+  const question = await Question.findById(questionId);
+  if (!question) return res.status(404).json({ message: "Question not found" });
+
+  const suggestion = new Answer({
+    user: req.user ? req.user.id : null, // Optional user ID if they happen to be logged in
+    questionId,
+    selectedOption,
+    isCorrect: false,
+    approved: false
+  });
+  await suggestion.save();
+
+  res.json({ message: "Correction suggested successfully" });
+});
+
+// Suggest new question (public)
+router.post("/suggest-question", async (req, res) => {
+  try {
+    const { question, options, correctAnswer, category, subcategory, explanation } = req.body;
+    
+    const newQuestion = new Question({
+      question,
+      options,
+      correctAnswer,
+      category: category || "",
+      subcategory: subcategory || "",
+      explanation: explanation || "",
+      isApproved: false,
+      user: req.user ? req.user.id : null // Optional user attribution
+    });
+
+    await newQuestion.save();
+    res.json({ message: "Question suggested successfully! Awaiting approval." });
+  } catch (err) {
+    res.status(500).json({ message: "Error suggesting question", error: err.message });
+  }
 });
 
 // Get user answer for a question (requires auth)

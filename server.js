@@ -1,9 +1,6 @@
 import express from "express";
 import cors from "cors";
-import path from "path";
 import db from "./config/db.js";
-import { time } from "console";
-
 // Connect to database
 db();
 const authRoutes = await import("./routes/authRoutes.js").then(mod => mod.default);
@@ -41,6 +38,9 @@ app.get("/health", (req, res) => {
     status: "OK"
   });
 });
+import { startAutoGeneration } from "./utils/autoGenerator.js";
+
 app.listen(process.env.PORT,() => {
   console.log("Server running ");
+  startAutoGeneration();
 });

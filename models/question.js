@@ -8,7 +8,12 @@ const QuestionSchema = new mongoose.Schema({
     C: String,
     D: String
   },
-  correctAnswer: String
+  correctAnswer: String,
+  category: { type: String, default: "" },
+  subcategory: { type: String, default: "" },
+  explanation: { type: String, default: "" },
+  isApproved: { type: Boolean, default: true },
+  createdAt: { type: Date, default: Date.now }
 });
 
 const Question = mongoose.model("Question", QuestionSchema);

@@ -8,6 +8,8 @@ import Answer from "../models/answer.js";
 import AdContent from "../models/adContent.js";
 import { authenticate, adminOnly } from "../middleware/auth.js";
 import shuffleOptions from "../utils/shuffle.js";
+import { generatePSCQuestion } from "../utils/aiService.js";
+
 
 const router = express.Router();
 
@@ -91,7 +93,10 @@ router.post("/upload-json", async (req, res) => {
         return {
           question: q.question,
           options: newOptions,
-          correctAnswer: newOptions[newCorrectAnswer]
+          correctAnswer: newOptions[newCorrectAnswer],
+          category: q.category || "",
+          subcategory: q.subcategory || "",
+          explanation: q.explanation || ""
         };
       } else if (q.correct && q.wrongOptions) {
         // Need to shuffle
@@ -99,7 +104,11 @@ router.post("/upload-json", async (req, res) => {
         return {
           question: q.question,
           options,
-          correctAnswer
+          correctAnswer,
+          category: q.category || "",
+          subcategory: q.subcategory || "",
+          explanation: q.explanation || "",
+          isApproved: true
         };
       } else {
         throw new Error("Each question must have either 'options' and 'correctAnswer' or 'correct' and 'wrongOptions'");
@@ -114,7 +123,7 @@ router.post("/upload-json", async (req, res) => {
   }
 });
 
-/* ================= SUGGESTIONS ================= */
+/* ================= SUGGESTIONS (CORRECTIONS) ================= */
 router.get("/suggestions", async (req, res) => {
   const answers = await Answer.find({ approved: false })
     .populate({
@@ -122,19 +131,42 @@ router.get("/suggestions", async (req, res) => {
       select: "question options correctAnswer"
     });
 
-  const normalized = answers.map(a => ({
-    _id: a._id,
-    suggestedAnswer: a.selectedOption,
-    question: {
-      ...a.questionId.toObject(),
-      correctAnswer: ['A', 'B', 'C', 'D'].includes(a.questionId.correctAnswer) ? a.questionId.options[a.questionId.correctAnswer] : a.questionId.correctAnswer
-    }
-  }));
+  const normalized = answers.map(a => {
+    if (!a.questionId) return null;
+    return {
+      _id: a._id,
+      suggestedAnswer: a.selectedOption,
+      question: {
+        ...a.questionId.toObject(),
+        correctAnswer: ['A', 'B', 'C', 'D'].includes(a.questionId.correctAnswer) ? a.questionId.options[a.questionId.correctAnswer] : a.questionId.correctAnswer
+      }
+    };
+  }).filter(Boolean);
 
   res.json(normalized);
 });
 
-/* ================= APPROVE SUGGESTION ================= */
+/* ================= SUGGESTED QUESTIONS ================= */
+router.get("/suggested-questions", async (req, res) => {
+  const questions = await Question.find({ isApproved: false });
+  res.json(questions);
+});
+
+router.post("/approve-question/:id", async (req, res) => {
+  try {
+    const question = await Question.findByIdAndUpdate(
+      req.params.id,
+      { isApproved: true },
+      { new: true }
+    );
+    if (!question) return res.status(404).json({ message: "Question not found" });
+    res.json({ message: "Question approved", question });
+  } catch (err) {
+    res.status(500).json({ message: "Error approving question", error: err.message });
+  }
+});
+
+/* ================= APPROVE SUGGESTION (CORRECTION) ================= */
 router.post("/approve/:id", async (req, res) => {
   try {
     const answer = await Answer.findByIdAndUpdate(
@@ -142,20 +174,27 @@ router.post("/approve/:id", async (req, res) => {
       { approved: true },
       { new: true }
     );
-
-    if (!answer) {
-      return res.status(404).json({ message: "Suggestion not found" });
-    }
-
+    if (!answer) return res.status(404).json({ message: "Suggestion not found" });
     res.json({ message: "Suggestion approved", answer });
   } catch (err) {
     res.status(500).json({ message: "Error approving suggestion", error: err.message });
   }
 });
 
+/* ================= REJECT SUGGESTION (CORRECTION) ================= */
+router.post("/reject/:id", async (req, res) => {
+  try {
+    const answer = await Answer.findByIdAndDelete(req.params.id);
+    if (!answer) return res.status(404).json({ message: "Suggestion not found" });
+    res.json({ message: "Suggestion rejected and deleted" });
+  } catch (err) {
+    res.status(500).json({ message: "Error rejecting suggestion", error: err.message });
+  }
+});
+
 /* ================= EDIT QUESTIONS ================= */
 router.get("/questions", async (req, res) => {
-  const questions = await Question.find({});
+  const questions = await Question.find({ isApproved: { $ne: false } });
   const normalized = questions.map(q => ({
     ...q.toObject(),
     correctAnswer: ['A', 'B', 'C', 'D'].includes(q.correctAnswer) ? q.options[q.correctAnswer] : q.correctAnswer
@@ -164,47 +203,56 @@ router.get("/questions", async (req, res) => {
 });
 
 router.put("/questions/:id", async (req, res) => {
-  const { question, options, correctAnswer } = req.body;
-  await Question.findByIdAndUpdate(req.params.id, { question, options, correctAnswer });
+  const { question, options, correctAnswer, category, subcategory, explanation } = req.body;
+  await Question.findByIdAndUpdate(req.params.id, { question, options, correctAnswer, category, subcategory, explanation });
   res.json({ message: "Question updated" });
 });
 
 /* ================= ADD SINGLE QUESTION ================= */
 router.post("/question", async (req, res) => {
   try {
-    const { question, options, correctAnswer } = req.body;
+    const { question, options, correctAnswer, category, subcategory, explanation } = req.body;
 
-    // Optional: Shuffle options here too if desired, 
-    // but for manual entry, it's often better to respect the user's input order 
-    // unless consistency is strictly required. 
-    // Assuming we store the correct answer KEY (A, B, C, D) or value.
-    // The GET /questions endpoint handles converting keys to values if needed.
-
-    // Check if we need to convert the key to value as per upload-json logic
-    // upload-json stores the VALUE.
-
-    // If user sends 'A', we should probably store options['A'] to match upload-json behavior
     let finalCorrectAnswer = correctAnswer;
     if (['A', 'B', 'C', 'D'].includes(correctAnswer)) {
-      // If the frontend sends the key (e.g. "A"), let's store the text value
-      // ensuring consistency with the upload-json logic which seems to store text
       finalCorrectAnswer = options[correctAnswer];
     }
 
     const newQuestion = new Question({
       question,
       options,
-      correctAnswer: finalCorrectAnswer
+      correctAnswer: finalCorrectAnswer,
+      category: category || "",
+      subcategory: subcategory || "",
+      explanation: explanation || "",
+      isApproved: true
     });
 
     await newQuestion.save();
     res.json({ message: "Question added successfully", question: newQuestion });
   } catch (err) {
-    res.status(500).json({ message: "Error adding question", error: err.message });
+    console.error("Add Question Error:", err);
+    res.status(500).json({ 
+      message: "Error adding question", 
+      error: err.message,
+      details: err.errors // Include Mongoose validation errors if any
+    });
+  }
+});
+
+/* ================= AI GENERATE QUESTION ================= */
+router.post("/generate-ai", async (req, res) => {
+  try {
+    const { category, subcategory } = req.body;
+    const aiQuestion = await generatePSCQuestion(category, subcategory);
+    res.json(aiQuestion);
+  } catch (err) {
+    res.status(500).json({ message: "AI Generation failed", error: err.message });
   }
 });
 
 /* ================= DELETE QUESTION ================= */
+
 router.delete("/questions/:id", async (req, res) => {
   try {
     const question = await Question.findByIdAndDelete(req.params.id);
