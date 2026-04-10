@@ -28,7 +28,9 @@ app.use("/uploads", (req, res, next) => {
   res.header("Access-Control-Allow-Headers", "Content-Type");
   next();
 }, express.static("uploads"));
-
+app.get("/",(req,res)=>{
+  res.send("api is running");
+})
 app.use("/auth", authRoutes);
 app.use("/admin", adminRoutes);
 app.use("/user", userRoutes);
