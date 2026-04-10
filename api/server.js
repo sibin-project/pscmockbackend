@@ -1,11 +1,12 @@
 import express from "express";
 import cors from "cors";
-import db from "./config/db.js";
+import db from "../config/db.js";
+import { startAutoGeneration } from "../utils/autoGenerator.js";
 // Connect to database
 db();
-const authRoutes = await import("./routes/authRoutes.js").then(mod => mod.default);
-const adminRoutes = await import("./routes/adminRoutes.js").then(mod => mod.default);
-const userRoutes = await import("./routes/userRoutes.js").then(mod => mod.default);
+const authRoutes = await import("../routes/authRoutes.js").then(mod => mod.default);
+const adminRoutes = await import("../routes/adminRoutes.js").then(mod => mod.default);
+const userRoutes = await import("../routes/userRoutes.js").then(mod => mod.default);
 
 const app = express();
 
@@ -40,7 +41,6 @@ app.get("/health", (req, res) => {
     status: "OK"
   });
 });
-import { startAutoGeneration } from "./utils/autoGenerator.js";
 
 app.listen(process.env.PORT,() => {
   console.log("Server running ");
