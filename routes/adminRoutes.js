@@ -1,8 +1,8 @@
 import express from "express";
 import mongoose from "mongoose";
 import multer from "multer";
-import path from "path";
-import fs from "fs";
+import { CloudinaryStorage } from "multer-storage-cloudinary";
+import cloudinary from "../config/cloudinary.js";
 import Question from "../models/question.js";
 import Answer from "../models/answer.js";
 import AdContent from "../models/adContent.js";
@@ -13,20 +13,13 @@ import { generatePSCQuestion } from "../utils/aiService.js";
 
 const router = express.Router();
 
-// Setup multer for image uploads
-const uploadsDir = "./uploads/products";
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-}
-
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, uploadsDir);
+// Setup Cloudinary storage
+const storage = new CloudinaryStorage({
+  cloudinary: cloudinary,
+  params: {
+    folder: "products",
+    allowed_formats: ["jpg", "jpeg", "png", "webp", "gif"],
   },
-  filename: (req, file, cb) => {
-    const uniqueName = `${Date.now()}-${Math.random().toString(36).substr(2, 9)}${path.extname(file.originalname)}`;
-    cb(null, uniqueName);
-  }
 });
 
 const upload = multer({
@@ -52,7 +45,7 @@ router.post("/upload-product-image", upload.single("image"), async (req, res) =>
       return res.status(400).json({ message: "No image file provided" });
     }
 
-    const imageUrl = `http://localhost:5000/uploads/products/${req.file.filename}`;
+    const imageUrl = req.file.path; // Cloudinary returns the full URL in path
     res.json({
       message: "Image uploaded successfully",
       imageUrl
