@@ -37,9 +37,9 @@ app.use(express.urlencoded({ limit: "50mb", extended: true }));
 app.get("/",(req,res)=>{
   res.send("api is running");
 })
-app.use("/auth", authRoutes);
-app.use("/admin", adminRoutes);
-app.use("/user", userRoutes);
+app.use("/api/auth", authRoutes);
+app.use("/api/admin", adminRoutes);
+app.use("/api/user", userRoutes);
 app.get("/health", (req, res) => {
   res.status(200).send({
     time: new Date().toISOString(),
