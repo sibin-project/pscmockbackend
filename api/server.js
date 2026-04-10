@@ -1,7 +1,10 @@
 import express from "express";
 import cors from "cors";
+import dotenv from "dotenv";
 import db from "../config/db.js";
 import { startAutoGeneration } from "../utils/autoGenerator.js";
+
+dotenv.config();
 // Connect to database
 db();
 const authRoutes = await import("../routes/authRoutes.js").then(mod => mod.default);
@@ -42,7 +45,13 @@ app.get("/health", (req, res) => {
   });
 });
 
-app.listen(process.env.PORT,() => {
-  console.log("Server running ");
-  startAutoGeneration();
-});
+
+if (process.env.NODE_ENV !== "production") {
+  const port = process.env.PORT || 5000;
+  app.listen(port, () => {
+    console.log(`Server running on port ${port}`);
+    startAutoGeneration();
+  });
+}
+
+export default app;
